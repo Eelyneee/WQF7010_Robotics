@@ -1,0 +1,9 @@
+<launch>
+  <node pkg="voice_control" type="voice_listener.py" name="voice_listener" output="screen" />
+  <node pkg="interaction_manager" type="interaction_manager.py" name="interaction_manager" output="screen" />
+  <node pkg="smile_detection" type="smile_detector.py" name="smile_detector" output="screen" />
+  <node pkg="audio_feedback" type="say_please.py" name="say_please" output="screen" />
+  <node pkg="audio_feedback" type="play_beep.py" name="play_beep" output="screen" />
+  <node pkg="audio_feedback" type="tts_feedback.py" name="tts_feedback" output="screen" />
+  <node pkg="photo_manager" type="photo_manager.py" name="photo_manager" output="screen" />
+</launch>
