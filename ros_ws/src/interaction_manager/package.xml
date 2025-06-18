@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>interaction_manager</name>
+  <version>0.0.0</version>
+  <description>The central logic node for voice-based smile detection robot</description>
+
+  <maintainer email="you@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+
+  <export>
+  </export>
+</package>
