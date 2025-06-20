@@ -25,6 +25,7 @@ class PhotoManager:
         self.photo_preview_pub = rospy.Publisher("/photo_preview", String, queue_size=1)
 
         rospy.loginfo("Photo Manager Node Started.")
+        rospy.spin()
 
     def save_photo_callback(self, msg):
         try:
