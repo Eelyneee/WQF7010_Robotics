@@ -1,58 +1,54 @@
+#!/usr/bin/env python3
+
+import rospy
+from sensor_msgs.msg import Image
+from std_msgs.msg import String
+from cv_bridge import CvBridge
+import cv2
 import os
-import shutil
 import datetime
 
 class PhotoManager:
-    def __init__(self, photo_dir='photos', upload_dir='uploaded'):
-        self.photo_dir = photo_dir
-        self.upload_dir = upload_dir
+    def _init_(self):
+        self.bridge = CvBridge()
+        self.latest_image = None
+        self.photo_dir = rospy.get_param("~photo_dir", "/tmp/smile_photos")
+
+        # Create photo directory if it doesn't exist
         os.makedirs(self.photo_dir, exist_ok=True)
-        os.makedirs(self.upload_dir, exist_ok=True)
 
-    def generate_filename(self, prefix='photo', ext='jpg'):
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{prefix}_{timestamp}.{ext}"
-        return filename
+        # Subscribers
+        rospy.Subscriber("/save_photo", Image, self.save_photo_callback)
+        rospy.Subscriber("/view_photo_request", String, self.view_photo_callback)
 
-    def save_photo(self, photo_data, prefix='photo', ext='jpg'):
-        filename = self.generate_filename(prefix, ext)
-        filepath = os.path.join(self.photo_dir, filename)
-        with open(filepath, 'wb') as f:
-            f.write(photo_data)
-        return filepath
+        # Publisher for sending back image preview or path
+        self.photo_preview_pub = rospy.Publisher("/photo_preview", String, queue_size=1)
 
-    def organize_photos_by_date(self):
-        for fname in os.listdir(self.photo_dir):
-            if not fname.lower().endswith(('.jpg', '.jpeg', '.png')):
-                continue
-            date_part = fname.split('_')[1] if '_' in fname else 'unknown'
-            date_folder = os.path.join(self.photo_dir, date_part)
-            os.makedirs(date_folder, exist_ok=True)
-            src = os.path.join(self.photo_dir, fname)
-            dst = os.path.join(date_folder, fname)
-            shutil.move(src, dst)
+        rospy.loginfo("Photo Manager Node Started.")
+        rospy.spin()
 
-    def upload_photo(self, filepath):
-        # Simulate upload by moving to upload_dir
-        if not os.path.exists(filepath):
-            raise FileNotFoundError(f"{filepath} does not exist")
-        fname = os.path.basename(filepath)
-        dst = os.path.join(self.upload_dir, fname)
-        shutil.move(filepath, dst)
-        return dst
+    def save_photo_callback(self, msg):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"photo_{timestamp}.jpg"
+            file_path = os.path.join(self.photo_dir, filename)
+            cv2.imwrite(file_path, cv_image)
+            rospy.loginfo(f"Saved photo: {file_path}")
+        except Exception as e:
+            rospy.logerr(f"Failed to save photo: {e}")
 
-# Example usage:
-if __name__ == "__main__":
-    manager = PhotoManager()
-    # Simulate photo data
-    photo_data = b'\xff\xd8\xff\xe0'  # JPEG header bytes
-    saved_path = manager.save_photo(photo_data)
-    print(f"Photo saved to: {saved_path}")
-    manager.organize_photos_by_date()
-    # Find a photo to upload
-    for root, dirs, files in os.walk(manager.photo_dir):
-        for file in files:
-            if file.endswith('.jpg'):
-                photo_path = os.path.join(root, file)
-                uploaded_path = manager.upload_photo(photo_path)
-                print(f"Photo uploaded to: {uploaded_path}")
+    def view_photo_callback(self, msg):
+        photo_name = msg.data
+        file_path = os.path.join(self.photo_dir, photo_name)
+        if os.path.exists(file_path):
+            rospy.loginfo(f"Photo available at: {file_path}")
+            self.photo_preview_pub.publish(f"Photo available: {file_path}")
+        else:
+            rospy.logwarn(f"Requested photo not found: {photo_name}")
+            self.photo_preview_pub.publish(f"Photo not found: {photo_name}")
+
+if _name_ == "_main_":
+    rospy.init_node("photo_manager")
+    PhotoManager()
+    rospy.spin()
