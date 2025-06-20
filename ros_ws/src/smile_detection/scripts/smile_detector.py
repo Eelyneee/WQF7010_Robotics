@@ -1,10 +1,9 @@
-# Sample code for reference
-
 #!/usr/bin/env python3
 import rospy
 from std_msgs.msg import Empty, Bool, String
 import cv2
 import time
+import subprocess
 
 class SmileDetector:
     def __init__(self):
@@ -26,6 +25,14 @@ class SmileDetector:
         rospy.loginfo("SmileDetector node is ready.")
         rospy.spin()
 
+    def launch_usb_cam():
+        try:
+            subprocess.run(['roslaunch', 'usb_cam', 'usb_cam-test.launch'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to launch: {e}")
+        except FileNotFoundError:
+            print("roslaunch not found.")
+            
     def start_detection_callback(self, msg):
         self.detect_smile()
 
@@ -82,6 +89,7 @@ class SmileDetector:
 
 if __name__ == '__main__':
     try:
+        launch_usb_cam()
         SmileDetector()
     except rospy.ROSInterruptException:
         pass
