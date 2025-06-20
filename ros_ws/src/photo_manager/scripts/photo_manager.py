@@ -39,16 +39,24 @@ class PhotoManager:
             rospy.logerr(f"Failed to save photo: {e}")
 
     def view_photo_callback(self, msg):
-        photo_name = msg.data
+        photo_name = msg.data.strip()
         file_path = os.path.join(self.photo_dir, photo_name)
+
         if os.path.exists(file_path):
-            rospy.loginfo(f"Photo available at: {file_path}")
-            self.photo_preview_pub.publish(f"Photo available: {file_path}")
+           rospy.loginfo(f"Displaying photo: {file_path}")
+           self.photo_preview_pub.publish(f"Photo available: {file_path}")
+
+           # Read and show the image
+           image = cv2.imread(file_path)
+               if image is not None:
+                 cv2.imshow("Smile Detector - Photo Viewer", image)
+                 cv2.waitKey(1)  # Needed to trigger the window
+
         else:
-            rospy.logwarn(f"Requested photo not found: {photo_name}")
+            rospy.logwarn(f"[PhotoManager] Requested photo not found: {photo_name}")
             self.photo_preview_pub.publish(f"Photo not found: {photo_name}")
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     rospy.init_node("photo_manager")
     PhotoManager()
     rospy.spin()
