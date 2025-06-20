@@ -9,7 +9,7 @@ import os
 import datetime
 
 class PhotoManager:
-    def _init_(self):
+    def __init__(self):
         self.bridge = CvBridge()
         self.latest_image = None
         self.photo_dir = rospy.get_param("~photo_dir", "/tmp/smile_photos")
