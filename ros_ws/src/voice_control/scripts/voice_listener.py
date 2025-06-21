@@ -1,139 +1,119 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
-import speech_recognition as sr
-import threading
 from std_msgs.msg import String
+
+# Importing time for simulated delays, in a real scenario, this would be replaced by actual voice processing.
 import time
 
 class VoiceListener:
+    """
+    ROS Node for listening to voice commands and publishing them.
+
+    This node implements a specific interaction flow:
+    1. Passively listens for the wake word "Hi Smily".
+    2. Once the wake word is detected, it publishes a "robot_greet" command.
+       (The interaction_manager will pick this up and use tts_feedback.py to say the greeting).
+    3. After the greeting is triggered, the node enters a "conversation mode" where it
+       actively processes subsequent commands without requiring the wake word again,
+       until an explicit "goodbye" command is given, or the conversation times out
+       (handled by interaction_manager).
+    """
     def __init__(self):
-        # Initialize ROS node
+        # Initialize the ROS node with a unique name
         rospy.init_node('voice_listener', anonymous=True)
-        
-        # Initialize speech recognition
-        self.recognizer = sr.Recognizer()
-        self.microphone = sr.Microphone()
-        
-        # Publishers
-        self.voice_command_pub = rospy.Publisher('/voice_command', String, queue_size=10)
-        self.say_text_pub = rospy.Publisher('/say_text', String, queue_size=10)
-        
-        # Robot responses
-        self.responses = {
-            'hello': "Hello there! Nice to meet you!",
-            'hi': "Hi! How can I help you today?",
-            'how are you': "I'm doing great! Thanks for asking.",
-            'what is your name': "I'm your friendly robot assistant!",
-            'take photo': "Say cheese! Taking a photo now!",
-            'smile': "I love seeing smiles! Keep it up!",
-            'goodbye': "Goodbye! Have a wonderful day!",
-            'bye': "See you later!",
-            'thank you': "You're very welcome!",
-            'thanks': "My pleasure to help!",
-            'stop listening': "I'll stop listening now. Goodbye!",
-            'quit': "Goodbye! It was nice talking with you!"
-        }
-        
-        # Setup microphone
-        self.setup_microphone()
-        
-        rospy.loginfo("🎤 Voice Listener node initialized!")
-        self.say_text_pub.publish(String(data="Voice listener ready! Say something to me!"))
-        
-    def setup_microphone(self):
-        """Setup and calibrate microphone"""
-        try:
-            rospy.loginfo("🎤 Setting up microphone...")
-            with self.microphone as source:
-                # Adjust for ambient noise
-                self.recognizer.adjust_for_ambient_noise(source, duration=2)
-                rospy.loginfo("🎤 Microphone calibrated for ambient noise")
-        except Exception as e:
-            rospy.logerr(f"Microphone setup error: {e}")
-    
-    def listen_for_speech(self):
-        """Listen for speech input"""
-        try:
-            with self.microphone as source:
-                rospy.loginfo("🎤 Listening...")
-                # Listen for audio with timeout
-                audio = self.recognizer.listen(source, timeout=1, phrase_time_limit=5)
-                
-            rospy.loginfo("🎤 Processing speech...")
-            
-            # Recognize speech using Google Speech Recognition
-            try:
-                text = self.recognizer.recognize_google(audio)
-                rospy.loginfo(f"🎤 You said: {text}")
-                return text.lower()
-            except sr.UnknownValueError:
-                rospy.logwarn("🎤 Could not understand audio")
-                return None
-            except sr.RequestError as e:
-                rospy.logerr(f"🎤 Speech recognition error: {e}")
-                return None
-                
-        except sr.WaitTimeoutError:
-            # Timeout is normal, just return None
-            return None
-        except Exception as e:
-            rospy.logerr(f"🎤 Listen error: {e}")
-            return None
-    
-    def get_response(self, user_input):
-        """Generate robot response based on user input"""
-        user_input = user_input.lower().strip()
-        
-        # Check for exact matches first
-        if user_input in self.responses:
-            return self.responses[user_input]
-        
-        # Check for partial matches
-        for key, response in self.responses.items():
-            if key in user_input:
-                return response
-        
-        # Default response for unknown input
-        return f"You said: {user_input}. That's interesting!"
-    
+
+        # Create a publisher for the /voice_command topic
+        # std_msgs.msg.String is used for simple text messages
+        self.command_publisher = rospy.Publisher('/voice_command', String, queue_size=10)
+
+        # Define the specific wake word for the robot
+        self.wake_word = "hi smily"
+
+        # A flag to indicate if the wake word has been detected and we are in conversation mode
+        self.conversation_mode_active = False
+
+        # Set the publishing rate (optional, but good practice for continuous nodes)
+        self.rate = rospy.Rate(1) # 1 Hz
+
+        rospy.loginfo("Voice Listener Node initialized. Passively waiting for wake word: '%s'", self.wake_word)
+
+    def process_command(self, text_input):
+        """
+        Processes the input text to detect the wake word or subsequent commands.
+        In a real application, this would involve more sophisticated Natural Language Understanding (NLU).
+        """
+        # Convert input to lowercase for case-insensitive matching and strip whitespace
+        text_input_lower = text_input.lower().strip()
+
+        if not self.conversation_mode_active:
+            # We are in passive listening mode, only check for the wake word
+            if self.wake_word in text_input_lower:
+                self.conversation_mode_active = True
+                rospy.loginfo("Wake word detected: '%s'. Publishing 'robot_greet' and entering conversation mode.", self.wake_word)
+                # Publish a special command that interaction_manager will use to trigger the greeting
+                self.command_publisher.publish("robot_greet")
+            else:
+                rospy.loginfo("Passively listening. Still waiting for wake word: '%s'...", self.wake_word)
+        else:
+            # We are in conversation mode, actively process commands
+            # Remove the wake word if it was inadvertently included in later commands for cleaner processing
+            command_text = text_input_lower.replace(self.wake_word, "").strip()
+
+            if "take photo" in command_text or "let's take picture" in command_text:
+                rospy.loginfo("Recognized command: take_photo")
+                self.command_publisher.publish("take_photo")
+                # Do not reset conversation_mode_active; stay in conversation mode for more commands
+            elif "check smile" in command_text:
+                rospy.loginfo("Recognized command: check_smile")
+                self.command_publisher.publish("check_smile")
+            elif "try again" in command_text:
+                rospy.loginfo("Recognized command: retry")
+                self.command_publisher.publish("retry")
+            elif "say that again" in command_text or "repeat" in command_text:
+                rospy.loginfo("Recognized command: repeat")
+                self.command_publisher.publish("repeat")
+            elif "view photo" in command_text:
+                rospy.loginfo("Recognized command: view_photo")
+                self.command_publisher.publish("view_photo")
+            # Add a command to explicitly exit conversation mode
+            elif "goodbye" in command_text or "stop listening" in command_text or "exit conversation" in command_text:
+                rospy.loginfo("Recognized command to exit conversation. Exiting conversation mode.")
+                self.command_publisher.publish("goodbye_command") # Let interaction_manager handle the "goodbye" response
+                self.conversation_mode_active = False # Go back to passive listening
+            else:
+                rospy.loginfo("Command not recognized: '%s'. Staying in conversation mode.", command_text)
+                self.command_publisher.publish("unrecognized_command") # Notify interaction_manager about unrecognized command
+
     def run(self):
-        """Main listening loop"""
-        rospy.loginfo("🎤 Starting voice recognition loop...")
-        
+        """
+        Main loop for the node.
+        In this simulation, it prompts for user input via the console.
+        In a real robot system, this would listen to a microphone and use a speech recognition library
+        to get 'text_input'.
+        """
         while not rospy.is_shutdown():
             try:
-                # Listen for speech
-                speech_text = self.listen_for_speech()
-                
-                if speech_text:
-                    # Publish the raw voice command
-                    self.voice_command_pub.publish(String(data=speech_text))
-                    
-                    # Check for quit commands
-                    if any(quit_word in speech_text for quit_word in ['quit', 'stop listening', 'goodbye']):
-                        response = self.get_response(speech_text)
-                        self.say_text_pub.publish(String(data=response))
-                        rospy.sleep(3)  # Wait for TTS to finish
-                        break
-                    
-                    # Generate and speak response
-                    response = self.get_response(speech_text)
-                    self.say_text_pub.publish(String(data=response))
-                
-                # Small delay to prevent overwhelming the system
-                rospy.sleep(0.1)
-                
-            except KeyboardInterrupt:
-                rospy.loginfo("🎤 Voice listener stopped by user")
-                self.say_text_pub.publish(String(data="Goodbye!"))
+                # Prompt user for input, simulating voice input
+                # The prompt changes based on whether conversation mode is active
+                prompt_message = "Say 'Hi Smily' to start, or a command if already active: "
+                if self.conversation_mode_active:
+                    prompt_message = "Say a command (e.g., 'take photo', or 'goodbye'): "
+
+                user_input = raw_input(prompt_message)
+                self.process_command(user_input)
+            except EOFError:
+                # Handle Ctrl+D or end of input gracefully for console simulation
+                rospy.loginfo("Exiting voice listener due to EOF.")
                 break
             except Exception as e:
-                rospy.logerr(f"🎤 Main loop error: {e}")
-                rospy.sleep(1)
+                rospy.logerr("Error in voice listener loop: %s", str(e))
+            self.rate.sleep() # Maintain the loop rate
 
 if __name__ == '__main__':
     try:
-        voice_node = VoiceListener()
-        voice_node.run()
+        listener = VoiceListener()
+        listener.run()
     except rospy.ROSInterruptException:
-        rospy.loginfo("Voice Listener node stopped.")
+        rospy.loginfo("Voice Listener node shut down cleanly.")
+    except Exception as e:
+        rospy.logerr("Failed to start Voice Listener node: %s", str(e))
