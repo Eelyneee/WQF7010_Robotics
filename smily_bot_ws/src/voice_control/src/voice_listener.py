@@ -64,16 +64,6 @@ class VoiceListener:
                     self.command_publisher.publish("save_photo")
                 elif any(phrase in command_text for phrase in ["goodbye milo", "stop listening", "thanks milo", "that's all for now", "exit conversation"]):
                     self.command_publisher.publish("goodbye_command") 
-                # elif any(phrase in command_text for phrase in ["check my smile", "am i smiling enough", "can you detect smiles"]):
-                #     self.command_publisher.publish("check_smile")
-                # elif any(phrase in command_text for phrase in ["how are we looking", "check our expressions"]):
-                #     self.command_publisher.publish("check_expressions")
-                # elif any(phrase in command_text for phrase in ["suggest a pose", "give us a pose idea", "help us pose"]):
-                #     self.command_publisher.publish("suggest_pose")
-                # elif any(phrase in command_text for phrase in ["are we all in the frame", "is everyone visible", "adjust for the group"]):
-                #     self.command_publisher.publish("check_framing")
-                # elif any(phrase in command_text for phrase in ["what can you do", "help", "tell me your commands"]):
-                #     self.command_publisher.publish("help_command")
                 elif  any(phrase in command_text for phrase in ["retry", "try again", "yes try again"]):
                     self.command_publisher.publish("retry")
                 elif "repeat" in command_text or "say that again" in command_text:
@@ -95,26 +85,19 @@ class VoiceListener:
                 if rospy.has_param('tts_busy'):
                     if rospy.get_param('tts_busy', False): # Check if currently busy
                         rospy.loginfo("Voice Listener: TTS is busy. Pausing microphone input.")
-                        # This loop keeps pausing as long as TTS is busy
                         while rospy.get_param('tts_busy', False) and not rospy.is_shutdown():
-                            rospy.sleep(1) # Check the busy status more frequently (every 0.5s)
-                        
-                        # --- CRUCIAL ADDITION: Delay AFTER TTS becomes idle ---
+                            rospy.sleep(1)
                         rospy.loginfo("Voice Listener: TTS finished speaking. Waiting briefly to clear echoes before listening again.")
-                        rospy.sleep(1.0) # Wait 1 second to allow sound to dissipate
-                        # --- END CRUCIAL ADDITION ---
+                        rospy.sleep(1.0) 
                 
-
                 if not rospy.get_param('tts_busy', False):
                     rospy.loginfo_once("Voice Listener: Microphone listening for speech...")
-
                     try:
                         audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
 
                         rospy.loginfo("Microphone: Recognizing speech...")
                         text = self.recognizer.recognize_google(audio)
                         self.process_command(text)
-
                     except sr.WaitTimeoutError:
                         pass
                     except sr.UnknownValueError:
@@ -128,7 +111,6 @@ class VoiceListener:
                     except Exception as e:
                         rospy.logerr("Microphone: An unexpected error occurred: %s", str(e))
                 else:
-                    # This else block should ideally not be hit if the logic above is working
                     rospy.logwarn("Voice Listener: Unexpected state - TTS busy, but trying to listen.")
 
 
