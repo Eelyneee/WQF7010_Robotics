@@ -1,0 +1,8 @@
+prefix=/home/mustar/smily_bot_ws/devel
+
+Name: smile_detection
+Description: Description of smile_detection
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

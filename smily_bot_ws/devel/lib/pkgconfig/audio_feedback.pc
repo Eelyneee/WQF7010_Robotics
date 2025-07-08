@@ -1,0 +1,8 @@
+prefix=/home/mustar/smily_bot_ws/devel
+
+Name: audio_feedback
+Description: Description of audio_feedback
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

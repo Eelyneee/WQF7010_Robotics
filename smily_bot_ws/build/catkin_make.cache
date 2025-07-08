@@ -1,0 +1,2 @@
+audio_feedback:interaction_manager:photo_manager:smile_detection:voice_control
+-DCATKIN_DEVEL_PREFIX=/home/mustar/smily_bot_ws/devel -DCMAKE_INSTALL_PREFIX=/home/mustar/smily_bot_ws/install -G Unix Makefiles

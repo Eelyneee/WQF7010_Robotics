@@ -1,0 +1,8 @@
+prefix=/home/mustar/smily_bot_ws/devel
+
+Name: photo_manager
+Description: Description of photo_manager
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

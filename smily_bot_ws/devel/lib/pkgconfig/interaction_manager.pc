@@ -1,0 +1,8 @@
+prefix=/home/mustar/smily_bot_ws/devel
+
+Name: interaction_manager
+Description: Description of interaction_manager
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
